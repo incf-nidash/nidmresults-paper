@@ -1,5 +1,7 @@
-# data directory
+# data directories
 data/
+pre/
+fsl_design/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
