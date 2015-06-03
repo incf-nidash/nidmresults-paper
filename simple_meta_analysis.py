@@ -1,10 +1,17 @@
+"""
+Perform a simple meta-analysis (as the third level of a hierarchical GLM)
+based on a set of NIDM-Results exports.
+
+@author: Camille Maumet <c.m.j.maumet@warwick.ac.uk>
+@copyright: University of Warwick 2015
+"""
 import os
-from rdflib.graph import Graph
+from rdflib.graph import Graph, Namespace
 from subprocess import check_call
 import collections
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-data_dir = os.path.join(SCRIPT_DIR, "data_spm_fsl")
+data_dir = os.path.join(SCRIPT_DIR, "data", "data_spm_fsl")
 pre_dir = os.path.join(SCRIPT_DIR, "pre")
 
 if not os.path.exists(pre_dir):
@@ -19,14 +26,15 @@ mask_maps = dict()
 ma_mask_name = os.path.join(pre_dir, "meta_analysis_mask")
 ma_mask = None
 
-SPM_SOFTWARE = "http://neurolex.org/wiki/nif-0000-00343"
-FSL_SOFTWARE = "http://neurolex.org/wiki/birnlex_2067"
+NLX = Namespace("http://neurolex.org/wiki/")
+SPM_SOFTWARE = NLX["nif-0000-00343"]
+FSL_SOFTWARE = NLX["birnlex_2067"]
 
 
 # studies = studies[0:3]
 
 for study in studies:
-    print study
+    print "\nStudy: " + study
 
     nidm_dir = os.path.join(data_dir, study)
     assert os.path.isdir(nidm_dir)
@@ -79,7 +87,7 @@ for study in studies:
                str(con_name) == "Group: pain":
 
                 if str(software) == SPM_SOFTWARE:
-                    print "--> with SPM"
+                    print "--> analyzed with SPM"
                     # If study was performed with SPM, reslice to FSL's
                     # template space
                     for to_reslice in [con_file, std_file, mask_file]:
@@ -87,26 +95,13 @@ for study in studies:
                         resliced_file = os.path.join(
                             pre_dir, study + "_" + file_name + "_r")
                         check_call(
-                            ["cd " + nidm_dir + ";" +
+                            ["cd \"" + nidm_dir + "\";" +
                              " flirt -in " + file_name + " -ref " +
                              "$FSLDIR/data/standard/MNI152_T1_2mm -applyxfm " +
                              "-usesqform " +
                              "-out " + resliced_file],
                             shell=True)
-                        # if not to_reslice == mask_file:
-                        #     rescaled_file = os.path.join(
-                        #         pre_dir, study + "_" + file_name + "_rs")
-                        #     check_call(
-                        #         ["cd " + nidm_dir + ";" +
-                        #          " fslmaths " + resliced_file + " -mul 40 " +
-                        #          rescaled_file],
-                        #         shell=True)
-                        #     if to_reslice == con_file:
-                        #         con_maps[study] = rescaled_file
-                        #     elif to_reslice == std_file:
-                        #         std_file = rescaled_file
-                        # else:
-                        #   mask_file = resliced_file
+
                         if to_reslice == mask_file:
                             mask_file = resliced_file
                         elif to_reslice == con_file:
@@ -115,7 +110,7 @@ for study in studies:
                             std_file = resliced_file
 
                 elif str(software == FSL_SOFTWARE):
-                    print "--> with FSL"
+                    print "--> analyzed with FSL"
                     # If study was performed with FSL, rescale to a target
                     # value of 100
                     for to_rescale in [con_file, std_file]:
@@ -123,54 +118,44 @@ for study in studies:
                         rescaled_file = os.path.join(
                             pre_dir, study + "_" + file_name + "_s")
                         check_call(
-                            ["cd " + nidm_dir + ";" +
-                             " fslmaths " + file_name + " -div 100 " +
-                             rescaled_file],
+                            ["cd \"" + nidm_dir + "\";" +
+                             " fslmaths \"" + file_name + "\" -div 100 " +
+                             " \"" + rescaled_file + "\""],
                             shell=True)
                         if to_rescale == con_file:
-                            con_maps[study] = rescaled_file
+                            con_maps[study] = "\"" + rescaled_file + "\""
                         elif to_rescale == std_file:
-                            std_file = rescaled_file
+                            std_file = "\"" + rescaled_file + "\""
 
                     mask_file = mask_file.replace("file://.", nidm_dir)
-                    # con_maps[study] = con_file.replace("file://.", nidm_dir)
-                    # std_file = std_file.replace("file://.", nidm_dir)
 
-                varcope_file = os.path.join(pre_dir, study + "_varcope")
+                varcope_file = "\"" + \
+                               os.path.join(pre_dir, study + "_varcope") + \
+                               "\""
                 check_call([" fslmaths " + std_file + " -sqr " + varcope_file],
                            shell=True)
                 varcon_maps[study] = varcope_file
 
-                # mask_file = mask_file.replace("file://.", pre_dir)
-
+                # Compute meta-analysis mask as the intersection of all
+                # study analysis masks
                 if ma_mask is None:
                     ma_mask = mask_file
                 else:
-                    check_call([" fslmaths " + mask_file + " -min " +
-                           ma_mask + " " + ma_mask_name],
-                               shell=True)
+                    check_call(
+                        [" fslmaths \"" + mask_file + "\" -min " +
+                         "\"" + ma_mask + "\" \"" + ma_mask_name + "\""],
+                        shell=True)
                     ma_mask = ma_mask_name
-
-                # con_maps[study] = \
-                #     str(con_file).replace("file://.", nidm_dir)
-                # sterr_maps[study] = \
-                #     str(std_file).replace("file://.", nidm_dir)
-                # mask_maps[study] = \
-                #     str(mask_file).replace("file://.", nidm_dir)
             else:
-                print study
-                print "con_name=--"+str(con_name)+"--"
-                print "********"
+                print "Ignore contrast '" + str(con_name) + "'."
 
-            # print "\n\nrow:"
-            # for el in row:
-            #     print str(el)
     else:
-        print study
-        print "not found"
+        print "Query returned no results for study "+study+"."
 
 # Binarize the analysis mask
-check_call(["fslmaths " + ma_mask + " -thr 0.9 -bin " + ma_mask], shell=True)
+print ["fslmaths \"" + ma_mask + "\" -thr 0.9 -bin " + ma_mask]
+check_call(["fslmaths \"" + ma_mask + "\" -thr 0.9 -bin \"" +
+            ma_mask + "\""], shell=True)
 
 # Sort copes and varcopes by study names
 to_merge = {'copes': collections.OrderedDict(sorted(con_maps.items())),
@@ -178,20 +163,21 @@ to_merge = {'copes': collections.OrderedDict(sorted(con_maps.items())),
 for file_name, files in to_merge.items():
 
     check_call(
-        ["fslmerge -t "+os.path.join(pre_dir, file_name) +
-         ".nii.gz "+" ".join(files.values())],
+        ["fslmerge -t \""+os.path.join(pre_dir, file_name) +
+         ".nii.gz\" "+" ".join(files.values())],
         shell=True)
 
 check_call([
     "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
-    "--dm=../pain_meta_analysis.mat"
-    " --cs=../pain_meta_analysis.grp --tc=../pain_meta_analysis.con "
-    "--mask="+ma_mask_name+" --runmode=flame1"], shell=True)
+    " --dm=../fsl_design/simple_meta_analysis.mat"
+    " --cs=../fsl_design/simple_meta_analysis.grp"
+    " --tc=../fsl_design/simple_meta_analysis.con "
+    " --mask=\""+ma_mask_name+"\" --runmode=flame1"], shell=True)
 
-print ["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"]
-check_call(["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"])
-print ["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"]
-check_call(["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"])
+# print ["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"]
+# check_call(["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"])
+# print ["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"]
+# check_call(["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"])
 # fslmaths stats/thresh_fdr05_p_adj_m.nii.gz -mul -1 -add 1 -thr 0.95 -mas stats/mask.nii.gz stats/thresh_fdr05_1mp_adj_m.nii.gz
 # fslmaths stats/zstat1.nii.gz -mas stats/thresh_fdr05_1mp_adj_m.nii.gz -mas stats/mask.nii.gz stats/thresh_zstat1.nii.gz
 # ttologp -logpout logp1 varcope1 cope1 20
