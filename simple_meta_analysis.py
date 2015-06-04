@@ -109,7 +109,7 @@ for study in studies:
                         elif to_reslice == std_file:
                             std_file = resliced_file
 
-                elif str(software == FSL_SOFTWARE):
+                elif software == FSL_SOFTWARE:
                     print "--> analyzed with FSL"
                     # If study was performed with FSL, rescale to a target
                     # value of 100
