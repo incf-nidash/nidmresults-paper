@@ -30,7 +30,9 @@ P_VALUE_UNC = NIDM["NIDM_0000160"]
 owl_file = "https://raw.githubusercontent.com/incf-nidash/nidm/master/nidm/\
 nidm-results/terms/releases/nidm-results_110.owl"
 
-for study in studies[0:2]:
+for study in [studies[0], studies[15]]:
+    print "\nStudy: " + study
+
     nidm_dir = os.path.join(data_dir, study)
     assert os.path.isdir(nidm_dir)
 
