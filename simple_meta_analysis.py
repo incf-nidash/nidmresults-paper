@@ -86,7 +86,9 @@ for study in studies:
                str(con_name) == "pain: group mean" or \
                str(con_name) == "Group: pain":
 
-                if str(software) == SPM_SOFTWARE:
+                print "Looking at contrast '" + str(con_name) + "'."
+
+                if software == SPM_SOFTWARE:
                     print "--> analyzed with SPM"
                     # If study was performed with SPM, reslice to FSL's
                     # template space
@@ -174,11 +176,36 @@ check_call([
     " --tc=../fsl_design/simple_meta_analysis.con "
     " --mask=\""+ma_mask_name+"\" --runmode=flame1"], shell=True)
 
-# print ["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"]
-# check_call(["cd " + pre_dir + "; fslmaths stats/zstat1 -ztop stats/p_unc"])
-# print ["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"]
-# check_call(["cd " + pre_dir + "; fdr -i stats/p_unc -q 0.05 -a stats/thresh_fdr05_p_adj"])
-# fslmaths stats/thresh_fdr05_p_adj_m.nii.gz -mul -1 -add 1 -thr 0.95 -mas stats/mask.nii.gz stats/thresh_fdr05_1mp_adj_m.nii.gz
-# fslmaths stats/zstat1.nii.gz -mas stats/thresh_fdr05_1mp_adj_m.nii.gz -mas stats/mask.nii.gz stats/thresh_zstat1.nii.gz
-# ttologp -logpout logp1 varcope1 cope1 20
-# fslmaths logp1.nii.gz -div -2.3026 -mas mask.nii.gz -mas thresh_zstat1.nii.gz thresh_minuslog10p1.nii.gz
+stat_dir = os.path.join(pre_dir, "stats")
+
+# Uncorrected p-value from z-statistic
+check_call(["cd " + stat_dir + ";" +
+            "fslmaths zstat1 -ztop punc"],
+           shell=True)
+
+# FDR-adjusted p-values from uncorrected p-values
+check_call(["cd " + stat_dir + ";" +
+            "fdr -i punc -q 0.05 -a pfdr -m mask"],
+           shell=True)
+
+# Excursion set (pFDR<0.05) filled with 1 - (FDR-adjusted p-values < 0.05)
+check_call(["cd " + stat_dir + ";" +
+            "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"],
+           shell=True)
+
+# Excursion set filled with zstat
+check_call(["cd " + stat_dir + ";" +
+            "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"],
+           shell=True)
+
+# logn(unc. p-values) from cope, varcope and dof
+check_call(["cd " + stat_dir + ";" +
+            "ttologp -logpout logp1 varcope1 cope1 20"],
+           shell=True)
+
+# Excursion set filled with -log10(unc. p-values) from logn(unc. p-values)
+# note: log10(p-values) = log(p-values)/2.3026
+check_call(["cd " + stat_dir + ";" +
+            "fslmaths logp1.nii.gz -div -2.3026 " +
+            "-mas zstat1_fdr05 mlog10p_fdr05"],
+           shell=True)
