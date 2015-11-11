@@ -19,16 +19,11 @@ export_urls = [
     'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
     ]
 
-# Namespaces
-NLX = Namespace("http://neurolex.org/wiki/")
-SPM_SOFTWARE = NLX["nif-0000-00343"]
-FSL_SOFTWARE = NLX["birnlex_2067"]
-
+# Namespaces and terms describing different thresholding approaches
 OBO = Namespace("http://purl.obolibrary.org/obo/")
 STATISTIC = OBO["STATO_0000039"]
 P_VALUE_FWER = OBO["OBI_0001265"]
 Q_VALUE_FDR = OBO["OBI_0001442"]
-
 NIDM = Namespace("http://purl.org/nidash/nidm#")
 P_VALUE_UNC = NIDM["NIDM_0000160"]
 
