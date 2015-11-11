@@ -71,6 +71,7 @@ for url in export_urls:
     prefix errorVarianceHomogeneous: <http://purl.org/nidash/nidm#NIDM_0000094>
     prefix SearchSpaceMaskMap: <http://purl.org/nidash/nidm#NIDM_0000068>
     prefix contrastName: <http://purl.org/nidash/nidm#NIDM_0000085>
+    prefix statisticType: <http://purl.org/nidash/nidm#NIDM_0000123>
     prefix StatisticMap: <http://purl.org/nidash/nidm#NIDM_0000076>
     prefix searchVolumeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000121>
     prefix searchVolumeInUnits: <http://purl.org/nidash/nidm#NIDM_0000136>
@@ -82,7 +83,7 @@ nidm#NIDM_0000125>
     prefix softwareVersion: <http://purl.org/nidash/nidm#NIDM_0000122>
     prefix clusterSizeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000084>
 
-    SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name
+    SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name ?stat_type
             ?search_vol_vox ?search_vol_units
             ?extent_thresh_value ?height_thresh_value
             ?extent_thresh_type ?height_thresh_type
@@ -94,6 +95,7 @@ nidm#NIDM_0000125>
         ?error_model errorVarianceHomogeneous: ?homoscedasticity .
         ?stat_map prov:wasGeneratedBy/prov:used/prov:wasGeneratedBy ?mpe ;
                   a StatisticMap: ;
+                  statisticType: ?stat_type ;
                   contrastName: ?contrast_name .
         ?search_region prov:wasGeneratedBy ?inference ;
                        a SearchSpaceMaskMap: ;
@@ -132,7 +134,7 @@ nidm#NIDM_0000125>
 
     if sd:
         for row in sd:
-            est_method, homoscedasticity, contrast_name, \
+            est_method, homoscedasticity, contrast_name, stat_type, \
                 search_vol_vox, search_vol_units, extent_value, \
                 height_value, extent_thresh_type, height_thresh_type, \
                 software, exc_set, soft_version = row
@@ -140,36 +142,41 @@ nidm#NIDM_0000125>
             # Convert all info to text
             thresh = ""
             multiple_compa = ""
+            stat_abv = owl_graph.label(stat_type).replace("-statistic", "")
             if extent_thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
                 inference_type = "Cluster-wise"
                 multiple_compa = "with correction for multiple \
 comparisons "
-                thresh = "P < %0.2f" % float(extent_value)
                 if extent_thresh_type == Q_VALUE_FDR:
-                    thresh += " FDR-corrected"
+                    thresh = "Q <= "
                 else:
-                    thresh += " FWER-corrected"
+                    thresh = "P <= "
+
+                thresh += "%0.2f (%s)" % (
+                    float(extent_value),
+                    owl_graph.label(extent_thresh_type).replace(
+                        " p-value", ""))
 
                 thresh += " (cluster defining threshold "
                 if height_thresh_type == P_VALUE_UNC:
-                    thresh += "P < %0.2f)" % float(height_value)
+                    thresh += "P <= %0.2f)" % float(height_value)
                 if height_thresh_type == STATISTIC:
-                    thresh += "Z > %0.2f)" % float(height_value)
+                    thresh += stat_abv + " >= %0.2f)" % float(height_value)
             else:
                 inference_type = "Voxel-wise"
                 if height_thresh_type in \
                         [Q_VALUE_FDR, P_VALUE_FWER]:
                     multiple_compa = "with correction for multiple \
 comparisons "
-                    thresh = "P < %0.2f" % float(height_value)
+                    thresh = "P <= %0.2f" % float(height_value)
                     if height_thresh_type == Q_VALUE_FDR:
                         thresh += " FDR-corrected"
                     else:
                         thresh += " FWER-corrected"
                 elif height_thresh_type in P_VALUE_UNC:
-                    thresh = "P < %0.2f uncorrected" % float(height_value)
+                    thresh = "P <= %0.2f uncorrected" % float(height_value)
                 elif height_thresh_type == STATISTIC:
-                    thresh = "statistic > %0.2f uncorrected" \
+                    thresh = stat_abv + " >= %0.2f uncorrected" \
                         % float(height_value)
 
                 thresh += " and clusters smaller than %d were discarded" \
