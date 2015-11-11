@@ -19,21 +19,48 @@ export_urls = [
     'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
     ]
 
-# Namespaces and terms describing different thresholding approaches
-OBO = Namespace("http://purl.obolibrary.org/obo/")
-STATISTIC = OBO["STATO_0000039"]
-P_VALUE_FWER = OBO["OBI_0001265"]
-Q_VALUE_FDR = OBO["OBI_0001442"]
-NIDM = Namespace("http://purl.org/nidash/nidm#")
-P_VALUE_UNC = NIDM["NIDM_0000160"]
-
 # NIDM-Results 1.0.0 owl file
 owl_file = "https://raw.githubusercontent.com/incf-nidash/nidm/master/nidm/\
 nidm-results/terms/releases/nidm-results_110.owl"
 
+OBO = Namespace("http://purl.obolibrary.org/obo/")
+P_VALUE_FWER = OBO["OBI_0001265"]
+Q_VALUE_FDR = OBO["OBI_0001442"]
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 tmpdir = tempfile.mkdtemp()
+
+
+def threshold_txt(owl_graph, thresh_type, value, stat_type):
+    # Namespaces and terms describing different thresholding approaches
+    NIDM = Namespace("http://purl.org/nidash/nidm#")
+    P_VALUE_UNC = NIDM["NIDM_0000160"]
+    STATISTIC = OBO["STATO_0000039"]
+
+    multiple_compa = ""
+    is_p_value = True
+    if thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
+        multiple_compa = "with correction for multiple \
+comparisons "
+        if thresh_type == Q_VALUE_FDR:
+            thresh = "Q <= "
+        else:
+            thresh = "P <= "
+    elif thresh_type == P_VALUE_UNC:
+        thresh = "P <= "
+    elif thresh_type == STATISTIC:
+        is_p_value = False
+        stat_abv = owl_graph.label(stat_type).replace("-statistic", "")
+        thresh = stat_abv + " >= "
+
+    thresh += "%0.2f" % float(value)
+
+    if is_p_value:
+        thresh += " (%s)" % (owl_graph.label(
+            thresh_type).replace(" p-value", ""))
+
+    return list([thresh, multiple_compa])
 
 for url in export_urls:
     # Copy .nidm.zip export locally in a temp directory
@@ -142,43 +169,19 @@ nidm#NIDM_0000125>
             # Convert all info to text
             thresh = ""
             multiple_compa = ""
-            stat_abv = owl_graph.label(stat_type).replace("-statistic", "")
+
             if extent_thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
                 inference_type = "Cluster-wise"
-                multiple_compa = "with correction for multiple \
-comparisons "
-                if extent_thresh_type == Q_VALUE_FDR:
-                    thresh = "Q <= "
-                else:
-                    thresh = "P <= "
+                thresh, multiple_compa = threshold_txt(
+                    owl_graph, extent_thresh_type, extent_value, stat_type)
+                clus_thresh, unused = threshold_txt(
+                    owl_graph, height_thresh_type, height_value, stat_type)
+                thresh += " with a cluster defining threshold " + clus_thresh
 
-                thresh += "%0.2f (%s)" % (
-                    float(extent_value),
-                    owl_graph.label(extent_thresh_type).replace(
-                        " p-value", ""))
-
-                thresh += " (cluster defining threshold "
-                if height_thresh_type == P_VALUE_UNC:
-                    thresh += "P <= %0.2f)" % float(height_value)
-                if height_thresh_type == STATISTIC:
-                    thresh += stat_abv + " >= %0.2f)" % float(height_value)
             else:
                 inference_type = "Voxel-wise"
-                if height_thresh_type in \
-                        [Q_VALUE_FDR, P_VALUE_FWER]:
-                    multiple_compa = "with correction for multiple \
-comparisons "
-                    thresh = "P <= %0.2f" % float(height_value)
-                    if height_thresh_type == Q_VALUE_FDR:
-                        thresh += " FDR-corrected"
-                    else:
-                        thresh += " FWER-corrected"
-                elif height_thresh_type in P_VALUE_UNC:
-                    thresh = "P <= %0.2f uncorrected" % float(height_value)
-                elif height_thresh_type == STATISTIC:
-                    thresh = stat_abv + " >= %0.2f uncorrected" \
-                        % float(height_value)
-
+                thresh, multiple_compa = threshold_txt(
+                    owl_graph, height_thresh_type, height_value, stat_type)
                 thresh += " and clusters smaller than %d were discarded" \
                           % int(extent_value)
 
