@@ -7,34 +7,81 @@ two NIDM-Results export: one from SPM, one from FSL.
 """
 
 import os
+import re
+import logging
+import zipfile
+from urllib2 import urlopen, URLError, HTTPError
+import tempfile
 from rdflib.graph import Graph, Namespace
 
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-data_dir = os.path.join(SCRIPT_DIR, "data", "data_spm_fsl")
-
-studies = next(os.walk(data_dir))[1]
-
-NLX = Namespace("http://neurolex.org/wiki/")
-SPM_SOFTWARE = NLX["nif-0000-00343"]
-FSL_SOFTWARE = NLX["birnlex_2067"]
-
-OBO = Namespace("http://purl.obolibrary.org/obo/")
-STATISTIC = OBO["STATO_0000039"]
-P_VALUE_FWER = OBO["OBI_0001265"]
-Q_VALUE_FDR = OBO["OBI_0001442"]
-
-NIDM = Namespace("http://purl.org/nidash/nidm#")
-P_VALUE_UNC = NIDM["NIDM_0000160"]
+# Examples of NIDM-Results archives
+export_urls = [
+    'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
+    ]
 
 # NIDM-Results 1.0.0 owl file
 owl_file = "https://raw.githubusercontent.com/incf-nidash/nidm/master/nidm/\
 nidm-results/terms/releases/nidm-results_110.owl"
 
-for study in [studies[0], studies[15]]:
-    print "\nStudy: " + study
+OBO = Namespace("http://purl.obolibrary.org/obo/")
+P_VALUE_FWER = OBO["OBI_0001265"]
+Q_VALUE_FDR = OBO["OBI_0001442"]
 
-    nidm_dir = os.path.join(data_dir, study)
-    assert os.path.isdir(nidm_dir)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+tmpdir = tempfile.mkdtemp()
+
+
+def threshold_txt(owl_graph, thresh_type, value, stat_type):
+    # Namespaces and terms describing different thresholding approaches
+    NIDM = Namespace("http://purl.org/nidash/nidm#")
+    P_VALUE_UNC = NIDM["NIDM_0000160"]
+    STATISTIC = OBO["STATO_0000039"]
+
+    multiple_compa = ""
+    is_p_value = True
+    if thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
+        multiple_compa = "with correction for multiple \
+comparisons "
+        if thresh_type == Q_VALUE_FDR:
+            thresh = "Q <= "
+        else:
+            thresh = "P <= "
+    elif thresh_type == P_VALUE_UNC:
+        thresh = "P <= "
+    elif thresh_type == STATISTIC:
+        is_p_value = False
+        stat_abv = owl_graph.label(stat_type).replace("-statistic", "")
+        thresh = stat_abv + " >= "
+
+    thresh += "%0.2f" % float(value)
+
+    if is_p_value:
+        thresh += " (%s)" % (owl_graph.label(
+            thresh_type).replace(" p-value", ""))
+
+    return list([thresh, multiple_compa])
+
+for url in export_urls:
+    # Copy .nidm.zip export locally in a temp directory
+    try:
+        f = urlopen(url)
+        data_id = re.search('id=(\w+)', url).groups()[0]
+        tmpzip = os.path.join(tmpdir, data_id + ".nidm.zip")
+
+        logger.info("downloading " + url + " at " + tmpzip)
+        with open(tmpzip, "wb") as local_file:
+            local_file.write(f.read())
+
+    except HTTPError, e:
+        print "HTTP Error:", e.code, url
+    except URLError, e:
+        print "URL Error:", e.reason, url
+
+    # Unzip NIDM-Results export
+    nidm_dir = os.path.join(tmpdir, data_id)
+    with zipfile.ZipFile(tmpzip, 'r') as zf:
+        zf.extractall(nidm_dir)
 
     nidm_doc = os.path.join(nidm_dir, "nidm.ttl")
     nidm_graph = Graph()
@@ -51,6 +98,7 @@ for study in [studies[0], studies[15]]:
     prefix errorVarianceHomogeneous: <http://purl.org/nidash/nidm#NIDM_0000094>
     prefix SearchSpaceMaskMap: <http://purl.org/nidash/nidm#NIDM_0000068>
     prefix contrastName: <http://purl.org/nidash/nidm#NIDM_0000085>
+    prefix statisticType: <http://purl.org/nidash/nidm#NIDM_0000123>
     prefix StatisticMap: <http://purl.org/nidash/nidm#NIDM_0000076>
     prefix searchVolumeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000121>
     prefix searchVolumeInUnits: <http://purl.org/nidash/nidm#NIDM_0000136>
@@ -62,7 +110,7 @@ nidm#NIDM_0000125>
     prefix softwareVersion: <http://purl.org/nidash/nidm#NIDM_0000122>
     prefix clusterSizeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000084>
 
-    SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name
+    SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name ?stat_type
             ?search_vol_vox ?search_vol_units
             ?extent_thresh_value ?height_thresh_value
             ?extent_thresh_type ?height_thresh_type
@@ -74,6 +122,7 @@ nidm#NIDM_0000125>
         ?error_model errorVarianceHomogeneous: ?homoscedasticity .
         ?stat_map prov:wasGeneratedBy/prov:used/prov:wasGeneratedBy ?mpe ;
                   a StatisticMap: ;
+                  statisticType: ?stat_type ;
                   contrastName: ?contrast_name .
         ?search_region prov:wasGeneratedBy ?inference ;
                        a SearchSpaceMaskMap: ;
@@ -112,70 +161,46 @@ nidm#NIDM_0000125>
 
     if sd:
         for row in sd:
-            est_method, homoscedasticity, contrast_name, \
+            est_method, homoscedasticity, contrast_name, stat_type, \
                 search_vol_vox, search_vol_units, extent_value, \
                 height_value, extent_thresh_type, height_thresh_type, \
                 software, exc_set, soft_version = row
 
-            # Select contrast of interest based on contrast name
-            if str(contrast_name) == "pain: group mean ac" or \
-               str(contrast_name) == "pain: group mean" or \
-               str(contrast_name) == "Group: pain":
+            # Convert all info to text
+            thresh = ""
+            multiple_compa = ""
 
-                # Convert all info to text
-                thresh = ""
-                multiple_compa = ""
-                if extent_thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
-                    inference_type = "Cluster-wise"
-                    multiple_compa = "with correction for multiple \
-comparisons "
-                    thresh = "P < %0.2f" % float(extent_value)
-                    if extent_thresh_type == Q_VALUE_FDR:
-                        thresh += " FDR-corrected"
-                    else:
-                        thresh += " FWER-corrected"
+            if extent_thresh_type in [Q_VALUE_FDR, P_VALUE_FWER]:
+                inference_type = "Cluster-wise"
+                thresh, multiple_compa = threshold_txt(
+                    owl_graph, extent_thresh_type, extent_value, stat_type)
+                clus_thresh, unused = threshold_txt(
+                    owl_graph, height_thresh_type, height_value, stat_type)
+                thresh += " with a cluster defining threshold " + clus_thresh
 
-                    thresh += " (cluster defining threshold "
-                    if height_thresh_type == P_VALUE_UNC:
-                        thresh += "P < %0.2f)" % float(height_value)
-                    if height_thresh_type == STATISTIC:
-                        thresh += "Z > %0.2f)" % float(height_value)
-                else:
-                    inference_type = "Voxel-wise"
-                    if height_thresh_type in \
-                            [Q_VALUE_FDR, P_VALUE_FWER]:
-                        multiple_compa = "with correction for multiple \
-comparisons "
-                        thresh = "P < %0.2f" % float(height_value)
-                        if height_thresh_type == Q_VALUE_FDR:
-                            thresh += " FDR-corrected"
-                        else:
-                            thresh += " FWER-corrected"
-                    elif height_thresh_type in P_VALUE_UNC:
-                        thresh = "P < %0.2f uncorrected" % float(height_value)
-                    elif height_thresh_type == STATISTIC:
-                        thresh = "statistic > %0.2f uncorrected" \
-                            % float(height_value)
+            else:
+                inference_type = "Voxel-wise"
+                thresh, multiple_compa = threshold_txt(
+                    owl_graph, height_thresh_type, height_value, stat_type)
+                thresh += " and clusters smaller than %d were discarded" \
+                          % int(extent_value)
 
-                    thresh += " and clusters smaller than %d were discarded" \
-                              % int(extent_value)
+            if homoscedasticity:
+                variance = 'equal'
+            else:
+                variance = 'unequal'
 
-                if homoscedasticity:
-                    variance = 'equal'
-                else:
-                    variance = 'unequal'
-
-                print "-------------------"
-                print "Group statistic was performed in %s (version %s). \
+            print "-------------------"
+            print "Group statistic was performed in %s (version %s). \
 %s was performed assuming %s variances. %s inference \
 was performed %susing a threshold %s. The search volume was %d cm^3 \
 (%d voxels)." % (
-                    owl_graph.label(software), soft_version,
-                    owl_graph.label(est_method).capitalize(),
-                    variance, inference_type,
-                    multiple_compa, thresh, float(search_vol_units)/1000,
-                    int(search_vol_vox))
-                print "-------------------"
+                owl_graph.label(software), soft_version,
+                owl_graph.label(est_method).capitalize(),
+                variance, inference_type,
+                multiple_compa, thresh, float(search_vol_units)/1000,
+                int(search_vol_vox))
+            print "-------------------"
 
     else:
         print "Query returned no results."
