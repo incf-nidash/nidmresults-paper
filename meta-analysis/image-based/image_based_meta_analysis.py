@@ -190,6 +190,16 @@ for file_name, files in to_merge.items():
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
 
+# Remove NaNs from copes and varcopes
+# (SPM code background with NaNs while FSL uses zeros)
+cmd = ["cd " + pre_dir + "; fslmaths copes.nii.gz -nan copes"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
+
+cmd = ["cd " + pre_dir + "; fslmaths varcopes.nii.gz -nan varcopes"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
+
 cmd = [
     "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
     " --dm=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.mat") +
