@@ -31,7 +31,7 @@ con_maps = dict()
 varcon_maps = dict()
 mask_maps = dict()
 
-ma_mask_name = os.path.join(pre_dir, "meta_analysis_mask")
+ma_mask_name = os.path.join(pre_dir, "mask_ma")
 ma_mask = None
 
 # studies = studies[0:3]
@@ -200,6 +200,7 @@ cmd = ["cd " + pre_dir + "; fslmaths varcopes.nii.gz -nan varcopes"]
 print "Running " + ",".join(cmd)
 check_call(cmd, shell=True)
 
+# Mixed-effects GLM (study-level)
 cmd = [
     "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
     " --dm=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.mat") +
@@ -211,43 +212,19 @@ check_call(cmd, shell=True)
 
 stat_dir = os.path.join(pre_dir, "stats")
 
-# # Uncorrected p-value from z-statistic
-# cmd = ["cd " + stat_dir + ";" + "fslmaths zstat1 -ztop punc"]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
-
-# # FDR-adjusted p-values from uncorrected p-values
-# cmd = ["cd " + stat_dir + ";" + "fdr -i punc -q 0.05 -a pfdr -m mask"]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
-
-# # Excursion set (pFDR<0.05) filled with 1 - (FDR-adjusted p-values < 0.05)
-# cmd = [
-#     "cd " + stat_dir + ";" +
-#     "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"
-#     ]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
-
-# # Excursion set filled with zstat
-# cmd = [
-#     "cd " + stat_dir + ";" +
-#     "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"
-#     ]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
-
-# # logn(unc. p-values) from cope, varcope and dof
-# cmd = ["cd " + stat_dir + ";" + "ttologp -logpout logp1 varcope1 cope1 20"]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
-
-# # Excursion set filled with -log10(unc. p-values) from logn(unc. p-values)
-# # note: log10(p-values) = log(p-values)/2.3026
-# cmd = [
-#     "cd " + stat_dir + ";" +
-#     "fslmaths logp1.nii.gz -div -2.3026 " +
-#     "-mas zstat1_fdr05 mlog10p_fdr05"
-# ]
-# print "Running " + ",".join(cmd)
-# check_call(cmd, shell=True)
+# FWE Voxel-wise corrected threshold p<0.05 (with a cluster forming threshold
+# of p<0.001 uncorrected)
+# Scripts from http://blogs.warwick.ac.uk/nichols/entry/flame_without_1st/
+cmd = [
+    "cd " + pre_dir + "; " +
+    "echo $($FSLDIR/bin/fslnvols copes) - 1 | bc -l  > stats/dof ;" +
+    "/bin/rm -f stats/zem* stats/zols* stats/mask* ;" +
+    "$FSLDIR/bin/smoothest -d $(cat stats/dof) -m " + ma_mask_name +
+    " -r stats/res4d > stats/smoothness ;" +
+    "rm -f stats/res4d* ;" +
+    "awk '/VOLUME/ {print $2}' stats/smoothness > thresh_zstat1.vol ;" +
+    "awk '/DLH/ {print $2}' stats/smoothness > thresh_zstat1.dlh ;" +
+    "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name + " thresh_zstat1"
+]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
