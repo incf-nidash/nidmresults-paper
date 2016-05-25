@@ -20,6 +20,7 @@ print data_dir
 assert os.path.isdir(data_dir)
 
 pre_dir = os.path.join(SCRIPT_DIR, "pre")
+FSL_DESIGN_DIR = os.path.join(SCRIPT_DIR, "fsl_design")
 
 if not os.path.exists(pre_dir):
     os.makedirs(pre_dir)
@@ -193,9 +194,9 @@ for file_name, files in to_merge.items():
 
 cmd = [
     "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
-    " --dm=../fsl_design/simple_meta_analysis.mat"
-    " --cs=../fsl_design/simple_meta_analysis.grp"
-    " --tc=../fsl_design/simple_meta_analysis.con "
+    " --dm=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.mat") +
+    " --cs=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.grp") +
+    " --tc=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.con ") +
     " --mask=\""+ma_mask_name+"\" --runmode=flame1"]
 print "Running " + ",".join(cmd)
 check_call(cmd, shell=True)
