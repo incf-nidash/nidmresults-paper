@@ -102,13 +102,15 @@ for nidm_file in studies:
                         file_name = os.path.basename(to_reslice).split(".")[0]
                         resliced_file = os.path.join(
                             pre_dir, study + "_" + file_name + "_r")
-                        check_call(
-                            ["cd \"" + nidm_dir + "\";" +
-                             " flirt -in " + file_name + " -ref " +
-                             "$FSLDIR/data/standard/MNI152_T1_2mm -applyxfm " +
-                             "-usesqform " +
-                             "-out " + resliced_file],
-                            shell=True)
+                        cmd = [
+                            "cd \"" + nidm_dir + "\";" +
+                            " flirt -in " + file_name + " -ref " +
+                            "$FSLDIR/data/standard/MNI152_T1_2mm -applyxfm " +
+                            "-usesqform " +
+                            "-out " + resliced_file
+                            ]
+                        print "Running " + ",".join(cmd)
+                        check_call(cmd, shell=True)
 
                         if to_reslice == mask_file:
                             mask_file = resliced_file
@@ -125,11 +127,14 @@ for nidm_file in studies:
                         file_name = os.path.basename(to_rescale).split(".")[0]
                         rescaled_file = os.path.join(
                             pre_dir, study + "_" + file_name + "_s")
-                        check_call(
-                            ["cd \"" + nidm_dir + "\";" +
-                             " fslmaths \"" + file_name + "\" -div 100 " +
-                             " \"" + rescaled_file + "\""],
-                            shell=True)
+                        cmd = [
+                            "cd \"" + nidm_dir + "\";" +
+                            " fslmaths \"" + file_name + "\" -div 100 " +
+                            " \"" + rescaled_file + "\""
+                            ]
+                        print "Running " + ",".join(cmd)
+                        check_call(cmd, shell=True)
+
                         if to_rescale == con_file:
                             con_maps[study] = "\"" + rescaled_file + "\""
                         elif to_rescale == std_file:
@@ -141,8 +146,10 @@ for nidm_file in studies:
                 varcope_file = "\"" + \
                                os.path.join(pre_dir, study + "_varcope") + \
                                "\""
-                check_call([" fslmaths " + std_file + " -sqr " + varcope_file],
-                           shell=True)
+                cmd = [" fslmaths " + std_file + " -sqr " + varcope_file]
+                print "Running " + ",".join(cmd)
+                check_call(cmd, shell=True)
+
                 varcon_maps[study] = varcope_file
 
                 # Compute meta-analysis mask as the intersection of all
@@ -150,10 +157,12 @@ for nidm_file in studies:
                 if ma_mask is None:
                     ma_mask = mask_file
                 else:
-                    check_call(
-                        [" fslmaths \"" + mask_file + "\" -min " +
-                         "\"" + ma_mask + "\" \"" + ma_mask_name + "\""],
-                        shell=True)
+                    cmd = [
+                        " fslmaths \"" + mask_file + "\" -min " +
+                        "\"" + ma_mask + "\" \"" + ma_mask_name + "\""
+                        ]
+                    print "Running " + ",".join(cmd)
+                    check_call(cmd, shell=True)
                     ma_mask = ma_mask_name
             else:
                 print "Ignore contrast '" + str(con_name) + "'."
@@ -162,57 +171,69 @@ for nidm_file in studies:
         print "Query returned no results for study "+study+"."
 
 # Binarize the analysis mask
-print ["fslmaths \"" + ma_mask + "\" -thr 0.9 -bin " + ma_mask]
-check_call(["fslmaths \"" + ma_mask + "\" -thr 0.9 -bin \"" +
-            ma_mask + "\""], shell=True)
+cmd = ["fslmaths \"" + ma_mask + "\" -thr 0.9 -bin \"" + ma_mask + "\""]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # Sort copes and varcopes by study names
 to_merge = {'copes': collections.OrderedDict(sorted(con_maps.items())),
             'varcopes': collections.OrderedDict(sorted(varcon_maps.items()))}
 for file_name, files in to_merge.items():
+    cmd = [
+        "fslmerge -t \""+os.path.join(pre_dir, file_name) +
+        ".nii.gz\" "+" ".join(files.values())
+    ]
+    print "Running " + ",".join(cmd)
+    check_call(cmd, shell=True)
 
-    check_call(
-        ["fslmerge -t \""+os.path.join(pre_dir, file_name) +
-         ".nii.gz\" "+" ".join(files.values())],
-        shell=True)
-
-check_call([
+cmd = [
     "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
     " --dm=../fsl_design/simple_meta_analysis.mat"
     " --cs=../fsl_design/simple_meta_analysis.grp"
     " --tc=../fsl_design/simple_meta_analysis.con "
-    " --mask=\""+ma_mask_name+"\" --runmode=flame1"], shell=True)
+    " --mask=\""+ma_mask_name+"\" --runmode=flame1"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 stat_dir = os.path.join(pre_dir, "stats")
 
 # Uncorrected p-value from z-statistic
-check_call(["cd " + stat_dir + ";" +
-            "fslmaths zstat1 -ztop punc"],
-           shell=True)
+cmd = ["cd " + stat_dir + ";" + "fslmaths zstat1 -ztop punc"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # FDR-adjusted p-values from uncorrected p-values
-check_call(["cd " + stat_dir + ";" +
-            "fdr -i punc -q 0.05 -a pfdr -m mask"],
-           shell=True)
+cmd = ["cd " + stat_dir + ";" + "fdr -i punc -q 0.05 -a pfdr -m mask"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # Excursion set (pFDR<0.05) filled with 1 - (FDR-adjusted p-values < 0.05)
-check_call(["cd " + stat_dir + ";" +
-            "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"],
-           shell=True)
+cmd = [
+    "cd " + stat_dir + ";" +
+    "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"
+    ]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # Excursion set filled with zstat
-check_call(["cd " + stat_dir + ";" +
-            "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"],
-           shell=True)
+cmd = [
+    "cd " + stat_dir + ";" +
+    "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"
+    ]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # logn(unc. p-values) from cope, varcope and dof
-check_call(["cd " + stat_dir + ";" +
-            "ttologp -logpout logp1 varcope1 cope1 20"],
-           shell=True)
+cmd = ["cd " + stat_dir + ";" + "ttologp -logpout logp1 varcope1 cope1 20"]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
 
 # Excursion set filled with -log10(unc. p-values) from logn(unc. p-values)
 # note: log10(p-values) = log(p-values)/2.3026
-check_call(["cd " + stat_dir + ";" +
-            "fslmaths logp1.nii.gz -div -2.3026 " +
-            "-mas zstat1_fdr05 mlog10p_fdr05"],
-           shell=True)
+cmd = [
+    "cd " + stat_dir + ";" +
+    "fslmaths logp1.nii.gz -div -2.3026 " +
+    "-mas zstat1_fdr05 mlog10p_fdr05"
+]
+print "Running " + ",".join(cmd)
+check_call(cmd, shell=True)
