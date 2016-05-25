@@ -6,7 +6,7 @@ based on a set of NIDM-Results exports.
 @copyright: University of Warwick 2015
 """
 import os
-from rdflib.graph import Graph, Namespace
+from rdflib.graph import Graph
 from subprocess import check_call
 from nidmresults.objects.constants import SCR_FSL, SCR_SPM
 import collections
@@ -44,10 +44,11 @@ for nidm_file in studies:
             os.makedirs(nidm_dir)
         z.extractall(nidm_dir)
 
-    print nidm_dir
+    nidm_doc = os.path.join(nidm_dir, "nidm.ttl")
+    assert os.path.isfile(nidm_doc)
 
     nidm_graph = Graph()
-    nidm_graph.parse(data=nidm_doc, format='turtle')
+    nidm_graph.parse(nidm_doc, format='turtle')
 
     query = """
     prefix prov: <http://www.w3.org/ns/prov#>
