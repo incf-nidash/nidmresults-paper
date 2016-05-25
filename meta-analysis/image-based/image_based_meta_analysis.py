@@ -201,43 +201,43 @@ check_call(cmd, shell=True)
 
 stat_dir = os.path.join(pre_dir, "stats")
 
-# Uncorrected p-value from z-statistic
-cmd = ["cd " + stat_dir + ";" + "fslmaths zstat1 -ztop punc"]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # Uncorrected p-value from z-statistic
+# cmd = ["cd " + stat_dir + ";" + "fslmaths zstat1 -ztop punc"]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
 
-# FDR-adjusted p-values from uncorrected p-values
-cmd = ["cd " + stat_dir + ";" + "fdr -i punc -q 0.05 -a pfdr -m mask"]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # FDR-adjusted p-values from uncorrected p-values
+# cmd = ["cd " + stat_dir + ";" + "fdr -i punc -q 0.05 -a pfdr -m mask"]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
 
-# Excursion set (pFDR<0.05) filled with 1 - (FDR-adjusted p-values < 0.05)
-cmd = [
-    "cd " + stat_dir + ";" +
-    "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"
-    ]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # Excursion set (pFDR<0.05) filled with 1 - (FDR-adjusted p-values < 0.05)
+# cmd = [
+#     "cd " + stat_dir + ";" +
+#     "fslmaths pfdr -mul -1 -add 1 -thr 0.95 -mas mask invpfdr_fdr05"
+#     ]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
 
-# Excursion set filled with zstat
-cmd = [
-    "cd " + stat_dir + ";" +
-    "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"
-    ]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # Excursion set filled with zstat
+# cmd = [
+#     "cd " + stat_dir + ";" +
+#     "fslmaths zstat1 -mas invpfdr_fdr05 zstat1_fdr05"
+#     ]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
 
-# logn(unc. p-values) from cope, varcope and dof
-cmd = ["cd " + stat_dir + ";" + "ttologp -logpout logp1 varcope1 cope1 20"]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # logn(unc. p-values) from cope, varcope and dof
+# cmd = ["cd " + stat_dir + ";" + "ttologp -logpout logp1 varcope1 cope1 20"]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
 
-# Excursion set filled with -log10(unc. p-values) from logn(unc. p-values)
-# note: log10(p-values) = log(p-values)/2.3026
-cmd = [
-    "cd " + stat_dir + ";" +
-    "fslmaths logp1.nii.gz -div -2.3026 " +
-    "-mas zstat1_fdr05 mlog10p_fdr05"
-]
-print "Running " + ",".join(cmd)
-check_call(cmd, shell=True)
+# # Excursion set filled with -log10(unc. p-values) from logn(unc. p-values)
+# # note: log10(p-values) = log(p-values)/2.3026
+# cmd = [
+#     "cd " + stat_dir + ";" +
+#     "fslmaths logp1.nii.gz -div -2.3026 " +
+#     "-mas zstat1_fdr05 mlog10p_fdr05"
+# ]
+# print "Running " + ",".join(cmd)
+# check_call(cmd, shell=True)
