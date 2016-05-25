@@ -19,7 +19,7 @@ data_dir = os.path.join(SCRIPT_DIR, "..", "..", "data", "pain")
 print data_dir
 assert os.path.isdir(data_dir)
 
-pre_dir = os.path.join(SCRIPT_DIR, "pre")
+pre_dir = os.path.join(SCRIPT_DIR, "data")
 FSL_DESIGN_DIR = os.path.join(SCRIPT_DIR, "fsl_design")
 
 if not os.path.exists(pre_dir):
@@ -94,8 +94,6 @@ for nidm_file in studies:
             mask_file = os.path.join(nidm_dir, mask_file)
 
             if str(con_name) == "pain":
-
-                print "Looking at contrast '" + str(con_name) + "'."
                 if software == URIRef(SCR_SPM.uri):
                     print "--> analyzed with SPM"
                     # If study was performed with SPM, reslice to FSL's
