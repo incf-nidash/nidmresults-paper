@@ -8,6 +8,7 @@ based on a set of NIDM-Results exports.
 import os
 from rdflib.graph import Graph, Namespace
 from subprocess import check_call
+from nidmresults.objects.constants import SCR_FSL, SCR_SPM
 import collections
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -25,11 +26,6 @@ mask_maps = dict()
 
 ma_mask_name = os.path.join(pre_dir, "meta_analysis_mask")
 ma_mask = None
-
-NLX = Namespace("http://neurolex.org/wiki/")
-SPM_SOFTWARE = NLX["nif-0000-00343"]
-FSL_SOFTWARE = NLX["birnlex_2067"]
-
 
 # studies = studies[0:3]
 
@@ -88,7 +84,7 @@ for study in studies:
 
                 print "Looking at contrast '" + str(con_name) + "'."
 
-                if software == SPM_SOFTWARE:
+                if software == SCR_SPM:
                     print "--> analyzed with SPM"
                     # If study was performed with SPM, reslice to FSL's
                     # template space
@@ -111,7 +107,7 @@ for study in studies:
                         elif to_reslice == std_file:
                             std_file = resliced_file
 
-                elif software == FSL_SOFTWARE:
+                elif software == SCR_FSL:
                     print "--> analyzed with FSL"
                     # If study was performed with FSL, rescale to a target
                     # value of 100
