@@ -7,6 +7,7 @@ based on a set of NIDM-Results exports.
 """
 import os
 from rdflib.graph import Graph
+from rdflib.term import URIRef
 from subprocess import check_call
 from nidmresults.objects.constants import SCR_FSL, SCR_SPM
 import collections
@@ -91,13 +92,10 @@ for nidm_file in studies:
             std_file = os.path.join(nidm_dir, std_file)
             mask_file = os.path.join(nidm_dir, mask_file)
 
-            if str(con_name) == "pain: group mean ac" or \
-               str(con_name) == "pain: group mean" or \
-               str(con_name) == "Group: pain":
+            if str(con_name) == "pain":
 
                 print "Looking at contrast '" + str(con_name) + "'."
-
-                if software == SCR_SPM:
+                if software == URIRef(SCR_SPM.uri):
                     print "--> analyzed with SPM"
                     # If study was performed with SPM, reslice to FSL's
                     # template space
@@ -122,7 +120,7 @@ for nidm_file in studies:
                         elif to_reslice == std_file:
                             std_file = resliced_file
 
-                elif software == SCR_FSL:
+                elif software == URIRef(SCR_FSL.uri):
                     print "--> analyzed with FSL"
                     # If study was performed with FSL, rescale to a target
                     # value of 100
@@ -144,6 +142,10 @@ for nidm_file in studies:
                             std_file = "\"" + rescaled_file + "\""
 
                     mask_file = mask_file.replace("file://.", nidm_dir)
+
+                else:
+                    raise Exception(
+                        'Unknown neuroimaging software: ' + str(software))
 
                 # Create varcope from standard error map
                 varcope_file = "\"" + \
