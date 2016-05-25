@@ -10,15 +10,20 @@ from rdflib.graph import Graph, Namespace
 from subprocess import check_call
 from nidmresults.objects.constants import SCR_FSL, SCR_SPM
 import collections
+import glob
+import zipfile
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-data_dir = os.path.join(SCRIPT_DIR, "data", "data_spm_fsl")
+data_dir = os.path.join(SCRIPT_DIR, "..", "..", "data", "pain")
+print data_dir
+assert os.path.isdir(data_dir)
+
 pre_dir = os.path.join(SCRIPT_DIR, "pre")
 
 if not os.path.exists(pre_dir):
     os.makedirs(pre_dir)
 
-studies = next(os.walk(data_dir))[1]
+studies = glob.glob(os.path.join(data_dir, '*.nidm.zip'))
 
 con_maps = dict()
 varcon_maps = dict()
@@ -29,16 +34,20 @@ ma_mask = None
 
 # studies = studies[0:3]
 
-for study in studies:
+for nidm_file in studies:
+    nidm_dir = nidm_file.replace(".nidm.zip", "")
+    study = os.path.basename(nidm_dir)
     print "\nStudy: " + study
 
-    nidm_dir = os.path.join(data_dir, study)
-    assert os.path.isdir(nidm_dir)
+    with zipfile.ZipFile(nidm_file) as z:
+        if not os.path.exists(nidm_dir):
+            os.makedirs(nidm_dir)
+        z.extractall(nidm_dir)
 
-    nidm_doc = os.path.join(nidm_dir, "nidm.ttl")
+    print nidm_dir
 
     nidm_graph = Graph()
-    nidm_graph.parse(nidm_doc, format='turtle')
+    nidm_graph.parse(data=nidm_doc, format='turtle')
 
     query = """
     prefix prov: <http://www.w3.org/ns/prov#>
@@ -127,6 +136,7 @@ for study in studies:
 
                     mask_file = mask_file.replace("file://.", nidm_dir)
 
+                # Create varcope from standard error map
                 varcope_file = "\"" + \
                                os.path.join(pre_dir, study + "_varcope") + \
                                "\""
