@@ -87,6 +87,9 @@ for nidm_file in studies:
     if sd:
         for row in sd:
             con_name, con_file, std_file, mask_file, software = row
+            con_file = os.path.join(nidm_dir, con_file)
+            std_file = os.path.join(nidm_dir, std_file)
+            mask_file = os.path.join(nidm_dir, mask_file)
 
             if str(con_name) == "pain: group mean ac" or \
                str(con_name) == "pain: group mean" or \
