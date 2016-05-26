@@ -16,7 +16,9 @@ from rdflib.graph import Graph, Namespace
 
 # Examples of NIDM-Results archives
 export_urls = [
-    'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
+    # 'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_01.nidm.zip',
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_21.nidm.zip',
     ]
 
 # NIDM-Results 1.0.0 owl file
@@ -63,23 +65,30 @@ comparisons "
     return list([thresh, multiple_compa])
 
 for url in export_urls:
-    # Copy .nidm.zip export locally in a temp directory
-    try:
-        f = urlopen(url)
-        data_id = re.search('id=(\w+)', url).groups()[0]
-        tmpzip = os.path.join(tmpdir, data_id + ".nidm.zip")
+    if url.startswith("http:"):
+        # Copy .nidm.zip export locally in a temp directory
+        try:
+            f = urlopen(url)
+            data_id = re.search('id=(\w+)', url).groups()[0]
+            tmpzip = os.path.join(tmpdir, data_id + ".nidm.zip")
 
-        logger.info("downloading " + url + " at " + tmpzip)
-        with open(tmpzip, "wb") as local_file:
-            local_file.write(f.read())
+            logger.info("downloading " + url + " at " + tmpzip)
+            with open(tmpzip, "wb") as local_file:
+                local_file.write(f.read())
 
-    except HTTPError, e:
-        print "HTTP Error:", e.code, url
-    except URLError, e:
-        print "URL Error:", e.reason, url
+        except HTTPError, e:
+            print "HTTP Error:", e.code, url
+        except URLError, e:
+            print "URL Error:", e.reason, url
+
+        nidm_dir = os.path.join(tmpdir, data_id)
+    else:
+        tmpzip = url
+        nidm_dir = tmpzip.replace(".nidm.zip", "")
+
+    print tmpzip
 
     # Unzip NIDM-Results export
-    nidm_dir = os.path.join(tmpdir, data_id)
     with zipfile.ZipFile(tmpzip, 'r') as zf:
         zf.extractall(nidm_dir)
 
