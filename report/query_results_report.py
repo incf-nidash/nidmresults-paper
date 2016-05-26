@@ -203,8 +203,9 @@ nidm#NIDM_0000125>
                 inference_type = "Voxel-wise"
                 thresh, multiple_compa = threshold_txt(
                     owl_graph, height_thresh_type, height_value, stat_type)
-                thresh += " and clusters smaller than %d were discarded" \
-                          % int(extent_value)
+                if int(extent_value) > 0:
+                    thresh += " and clusters smaller than %d were discarded" \
+                        % int(extent_value)
 
             if homoscedasticity:
                 variance = 'equal'
