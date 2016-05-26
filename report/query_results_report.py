@@ -13,6 +13,8 @@ import zipfile
 from urllib2 import urlopen, URLError, HTTPError
 import tempfile
 from rdflib.graph import Graph, Namespace
+from nidmresults import latest_owlfile as owl_file
+from nidmresults.objects.constants_rdflib import *
 
 # Examples of NIDM-Results archives
 export_urls = [
@@ -20,10 +22,6 @@ export_urls = [
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_01.nidm.zip',
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_21.nidm.zip',
     ]
-
-# NIDM-Results 1.0.0 owl file
-owl_file = "https://raw.githubusercontent.com/incf-nidash/nidm/master/nidm/\
-nidm-results/terms/releases/nidm-results_110.owl"
 
 OBO = Namespace("http://purl.obolibrary.org/obo/")
 P_VALUE_FWER = OBO["OBI_0001265"]
