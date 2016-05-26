@@ -100,6 +100,7 @@ for url in export_urls:
     prefix prov: <http://www.w3.org/ns/prov#>
     prefix nidm: <http://purl.org/nidash/nidm#>
 
+    prefix nidm_Data: <http://purl.org/nidash/nidm#NIDM_0000169>
     prefix ModelParamEstimation: <http://purl.org/nidash/nidm#NIDM_0000056>
     prefix withEstimationMethod: <http://purl.org/nidash/nidm#NIDM_0000134>
     prefix errorVarianceHomogeneous: <http://purl.org/nidash/nidm#NIDM_0000094>
@@ -116,17 +117,27 @@ nidm#NIDM_0000125>
     prefix ExcursionSetMap: <http://purl.org/nidash/nidm#NIDM_0000025>
     prefix softwareVersion: <http://purl.org/nidash/nidm#NIDM_0000122>
     prefix clusterSizeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000084>
+    prefix obo_studygrouppopulation: <http://purl.obolibrary.org/obo/STATO_0000193>
 
     SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name ?stat_type
             ?search_vol_vox ?search_vol_units
             ?extent_thresh_value ?height_thresh_value
             ?extent_thresh_type ?height_thresh_type
-            ?software ?excursion_set_id ?soft_version
+            ?software ?excursion_set_id ?soft_version ?subjects_type
         WHERE {
         ?mpe a ModelParamEstimation: .
         ?mpe withEstimationMethod: ?est_method .
         ?mpe prov:used ?error_model .
+        ?mpe prov:used ?data .
         ?error_model errorVarianceHomogeneous: ?homoscedasticity .
+        ?data a nidm_Data: .
+        ?data prov:wasAttributedTo ?group_or_subject .
+        {
+            ?group_or_subject a prov:Person
+        } UNION {
+            ?group_or_subject a obo_studygrouppopulation:
+        } .
+        ?group_or_subject a ?subjects_type .
         ?stat_map prov:wasGeneratedBy/prov:used/prov:wasGeneratedBy ?mpe ;
                   a StatisticMap: ;
                   statisticType: ?stat_type ;
@@ -155,6 +166,7 @@ nidm#NIDM_0000125>
                    prov:wasGeneratedBy ?inference .
 
         FILTER(?software NOT IN (prov:SoftwareAgent, prov:Agent))
+        FILTER(?subjects_type NOT IN (prov:SoftwareAgent, prov:Agent))
         FILTER(?height_thresh_type NOT IN (prov:Entity, HeightThreshold:))
         FILTER(?extent_thresh_type NOT IN (prov:Entity, ExtentThreshold:))
 
@@ -168,10 +180,12 @@ nidm#NIDM_0000125>
 
     if sd:
         for row in sd:
+            print row
+            # TODO deal with multiple contrasts in a single report !!
             est_method, homoscedasticity, contrast_name, stat_type, \
                 search_vol_vox, search_vol_units, extent_value, \
                 height_value, extent_thresh_type, height_thresh_type, \
-                software, exc_set, soft_version = row
+                software, exc_set, soft_version, subjects_type = row
 
             # Convert all info to text
             thresh = ""
@@ -197,11 +211,20 @@ nidm#NIDM_0000125>
             else:
                 variance = 'unequal'
 
+            if subjects_type in [STATO_GROUP]:
+                subjects = "group"
+            elif subjects_type in [PROV['Person']]:
+                subjects = "single-subject"
+            else:
+                raise Exception('Unknown subject type: ' + str(subjects_type))
+
+
             print "-------------------"
-            print "Group statistic was performed in %s (version %s). \
+            print "This %s analysis was performed with %s (version %s). \
 %s was performed assuming %s variances. %s inference \
 was performed %susing a threshold %s. The search volume was %d cm^3 \
 (%d voxels)." % (
+                subjects,
                 owl_graph.label(software), soft_version,
                 owl_graph.label(est_method).capitalize(),
                 variance, inference_type,
