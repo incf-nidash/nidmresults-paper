@@ -54,7 +54,7 @@ comparisons "
         stat_abv = owl_graph.label(stat_type).replace("-statistic", "")
         thresh = stat_abv + " >= "
 
-    thresh += "%0.2f" % float(value)
+    thresh += "%0.3f" % float(value)
 
     if is_p_value:
         thresh += " (%s)" % (owl_graph.label(
