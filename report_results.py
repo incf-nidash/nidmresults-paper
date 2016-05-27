@@ -122,20 +122,45 @@ nidm#NIDM_0000125>
     prefix softwareVersion: <http://purl.org/nidash/nidm#NIDM_0000122>
     prefix clusterSizeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000084>
     prefix obo_studygrouppopulation: <http://purl.obolibrary.org/obo/STATO_0000193>
+    prefix nidm_hasErrorDependence: <http://purl.org/nidash/nidm#NIDM_0000100>
+    prefix nidm_dependenceMapWiseDependence: <http://purl.org/nidash/nidm#NIDM_0000089>
+    prefix nidm_DesignMatrix: <http://purl.org/nidash/nidm#NIDM_0000019>
+    prefix nidm_hasDriftModel: <http://purl.org/nidash/nidm#NIDM_0000088>
+    prefix fsl_driftCutoffPeriod: <http://purl.org/nidash/fsl#FSL_0000004>
+    prefix spm_SPMsDriftCutoffPeriod: <http://purl.org/nidash/spm#SPM_0000001>
 
     SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name ?stat_type
             ?search_vol_vox ?search_vol_units
             ?extent_thresh_value ?height_thresh_value
             ?extent_thresh_type ?height_thresh_type
             ?software ?excursion_set_id ?soft_version ?subjects_type
+            ?var_spatial ?covar ?covar_spatial ?drift_model ?fsl_drift_cutoff
+            ?spm_drift_cutoff
         WHERE {
-        ?mpe a ModelParamEstimation: .
-        ?mpe withEstimationMethod: ?est_method .
-        ?mpe prov:used ?error_model .
-        ?mpe prov:used ?data .
-        ?error_model errorVarianceHomogeneous: ?homoscedasticity .
-        ?data a nidm_Data: .
-        ?data prov:wasAttributedTo ?group_or_subject .
+        ?mpe a ModelParamEstimation: ;
+            withEstimationMethod: ?est_method ;
+            prov:used ?error_model ;
+            prov:used ?data ;
+            prov:used ?design_matrix .
+        ?design_matrix a nidm_DesignMatrix: .
+        OPTIONAL {
+            ?design_matrix nidm_hasDriftModel: ?drift_model_id .
+            ?drift_model_id a ?drift_model .
+
+            FILTER(?drift_model NOT IN (prov:Entity))
+        } .
+        OPTIONAL {
+            ?drift_model_id fsl_driftCutoffPeriod: ?fsl_drift_cutoff .
+        } .
+        OPTIONAL {
+            ?drift_model_id spm_SPMsDriftCutoffPeriod: ?spm_drift_cutoff .
+        } .
+        ?error_model errorVarianceHomogeneous: ?homoscedasticity ;
+            nidm_varianceMapWiseDependence: ?var_spatial ;
+            nidm_hasErrorDependence: ?covar .
+        OPTIONAL {?error_model nidm_dependenceMapWiseDependence: ?covar_spatial }.
+        ?data a nidm_Data: ;
+            prov:wasAttributedTo ?group_or_subject .
         {
             ?group_or_subject a prov:Person
         } UNION {
@@ -191,7 +216,9 @@ nidm#NIDM_0000125>
             est_method, homoscedasticity, contrast_name, stat_type, \
                 search_vol_vox, search_vol_units, extent_value, \
                 height_value, extent_thresh_type, height_thresh_type, \
-                software, exc_set, soft_version, subjects_type = row
+                software, exc_set, soft_version, subjects_type, var_spatial,\
+                covar, covar_spatial, drift_model, fsl_drift_cutoff,\
+                spm_drift_cutoff = row
 
             # Convert all info to text
             thresh = ""
@@ -225,16 +252,55 @@ nidm#NIDM_0000125>
             else:
                 raise Exception('Unknown subject type: ' + str(subjects_type))
 
+            if var_spatial == NIDM_SPATIALLY_LOCAL_MODEL:
+                var_spatial = "local"
+            elif var_spatial == NIDM_SPATIALLY_GLOBAL_MODEL:
+                var_spatial = "global"
+            elif var_spatial == NIDM_SPATIALLY_REGULARIZED_MODEL:
+                var_spatial = "spatially regularized"
+            else:
+                raise Exception(
+                    'Unknown spatial variance estimation: ' + str(var_spatial))
+
+            if covar == NIDM_INDEPENDENT_ERROR:
+                covar = ""
+            else:
+                if covar_spatial == NIDM_SPATIALLY_LOCAL_MODEL:
+                    covar_spatial = "local"
+                elif covar_spatial == NIDM_SPATIALLY_GLOBAL_MODEL:
+                    covar_spatial = "global"
+                elif covar_spatial == NIDM_SPATIALLY_REGULARIZED_MODEL:
+                    covar_spatial = "spatially regularized"
+                else:
+                    raise Exception(
+                        'Unknown spatial variance estimation: ' + str(covar_spatial))       
+                covar = " and a " + covar_spatial + " covariance estimate"
+
+            if drift_model:
+                print drift_model
+                drift_model = "Drift was fit with a " + \
+                    owl_graph.label(drift_model).lower()
+                if spm_drift_cutoff:
+                    drift_model = drift_model + \
+                        " (" + spm_drift_cutoff + "s cut-off)."
+                if fsl_drift_cutoff:
+                    drift_model = drift_model + \
+                        " (" + fsl_drift_cutoff + "s FWHM)."
+            else:
+                drift_model = ""
 
             print "-------------------"
-            print "This %s analysis was performed with %s (version %s). \
-%s was performed assuming %s variances. %s inference \
+            print "%s-level analysis was performed with %s (version %s). \
+A linear regression was computed at each voxel, using %s \
+(assuming %s variances) with a %s variance estimate%s. %s\
+\n%s inference \
 was performed %susing a threshold %s. The search volume was %d cm^3 \
 (%d voxels)." % (
-                subjects,
+                subjects.capitalize(),
                 owl_graph.label(software), soft_version,
-                owl_graph.label(est_method).capitalize(),
-                variance, inference_type,
+                owl_graph.label(est_method).replace(" estimation", ""),
+                variance, var_spatial, covar, drift_model,
+                inference_type,
                 multiple_compa, thresh, float(search_vol_units)/1000,
                 int(search_vol_vox))
             print "-------------------"
