@@ -21,6 +21,10 @@ export_urls = [
     # 'https://docs.google.com/uc?id=0B5rWMFQteK5eMHVtVklCOHV6aGc&export=download'
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_01.nidm.zip',
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/pain/pain_21.nidm.zip',
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/fsl_ds005_group.nidm.zip',
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/spm_ds005_group.nidm.zip',
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/fsl_ds005_sub-01.nidm.zip',
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/spm_ds005_sub-01.nidm.zip'
     ]
 
 OBO = Namespace("http://purl.obolibrary.org/obo/")
@@ -178,9 +182,11 @@ nidm#NIDM_0000125>
     owl_graph = Graph()
     owl_graph.parse(owl_file, format='turtle')
 
+    print "\n\n"
+    print url
+
     if sd:
         for row in sd:
-            print row
             # TODO deal with multiple contrasts in a single report !!
             est_method, homoscedasticity, contrast_name, stat_type, \
                 search_vol_vox, search_vol_units, extent_value, \
