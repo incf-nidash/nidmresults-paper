@@ -79,9 +79,9 @@ for url in export_urls:
                 local_file.write(f.read())
 
         except HTTPError, e:
-            print "HTTP Error:", e.code, url
+            raise Exception(["HTTP Error:" + e.code + url])
         except URLError, e:
-            print "URL Error:", e.reason, url
+            raise Exception(["URL Error:" + e.reason + url])
 
         nidm_dir = os.path.join(tmpdir, data_id)
     else:
