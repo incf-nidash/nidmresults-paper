@@ -273,8 +273,10 @@ nidm#NIDM_0000125>
                     covar_spatial = "spatially regularized"
                 else:
                     raise Exception(
-                        'Unknown spatial variance estimation: ' + str(covar_spatial))       
-                covar = " and a " + covar_spatial + " covariance estimate"
+                        'Unknown spatial variance estimation: ' +
+                        str(covar_spatial))
+                covar = " and a " + covar_spatial + " " + \
+                    owl_graph.label(covar)
 
             if drift_model:
                 print drift_model
