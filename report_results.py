@@ -62,7 +62,7 @@ comparisons "
 
     if is_p_value:
         thresh += " (%s)" % (owl_graph.label(
-            thresh_type).replace(" p-value", ""))
+            thresh_type).replace(" p-value", "").replace("P-Value ", ""))
 
     return list([thresh, multiple_compa])
 
@@ -87,8 +87,6 @@ for url in export_urls:
     else:
         tmpzip = url
         nidm_dir = tmpzip.replace(".nidm.zip", "")
-
-    print tmpzip
 
     # Unzip NIDM-Results export
     with zipfile.ZipFile(tmpzip, 'r') as zf:
@@ -279,7 +277,6 @@ nidm#NIDM_0000125>
                     owl_graph.label(covar)
 
             if drift_model:
-                print drift_model
                 drift_model = "Drift was fit with a " + \
                     owl_graph.label(drift_model).lower()
                 if spm_drift_cutoff:
