@@ -1,13 +1,14 @@
 
 COI_directory = 'pain_contrast'; % directory where data will be stored
 iterations = 15000; % iterations of Monte Carlo method
-dbname ='pain.csv'; % name of the database
+% Path to the database
+dbname = fullfile(pwd, 'input', 'coordinate-based meta-analysis', 'pain.csv'); 
 
 % Genereates a .mat file containing the database information. 
 % - When prompted 'Enter name of file to save (without .mat extension):'
 %   enter 'pain'.
 read_database; 
-DB=Meta_Setup (DB, 10);
+DB=Meta_Setup(DB, 15);
 
 mkdir(COI_directory);
 cd(COI_directory);
@@ -39,4 +40,4 @@ MC_Setup = Meta_Activation_FWE('setup', DB);
 load MC_Info.mat
 
 Meta_Activation_FWE('mc',iterations);
-Meta_Activation_FWE('results', 1);
+Meta_Activation_FWE('results', 1, 'stringent');
