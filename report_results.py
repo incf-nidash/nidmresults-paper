@@ -24,7 +24,7 @@ export_urls = [
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/fsl_ds005_group.nidm.zip',
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/spm_ds005_group.nidm.zip',
     '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/fsl_ds005_sub-01.nidm.zip',
-    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/spm_ds005_sub-01.nidm.zip'
+    '/Users/cmaumet/Projects/Data_sharing/dev/nidmresults-paper/data/examples/spm_ds005_sub-01.nidm.zip',    
     ]
 
 OBO = Namespace("http://purl.obolibrary.org/obo/")

@@ -213,8 +213,8 @@ if __name__ == '__main__':
 
     stat_dir = os.path.join(pre_dir, "stats")
 
-    # FWE Voxel-wise corrected threshold p<0.05 (with a cluster forming threshold
-    # of p<0.001 uncorrected)
+    # FWE Voxel-wise corrected threshold p<0.05 (with a cluster forming
+    # threshold of p<0.001 uncorrected)
     # Scripts from http://blogs.warwick.ac.uk/nichols/entry/flame_without_1st/
     cmd = [
         "cd " + pre_dir + "; " +
@@ -225,7 +225,19 @@ if __name__ == '__main__':
         "rm -f stats/res4d* ;" +
         "awk '/VOLUME/ {print $2}' stats/smoothness > thresh_zstat1.vol ;" +
         "awk '/DLH/ {print $2}' stats/smoothness > thresh_zstat1.dlh ;" +
-        "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name + " thresh_zstat1"
+        "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name +
+        " thresh_zstat1;" +
+        "$FSLDIR/bin/cluster -i thresh_zstat1 -c stats/cope1 -t 3.1 -p 0.05" +
+        " -d $(cat thresh_zstat1.dlh) --volume=$(cat thresh_zstat1.vol) " +
+        "--othresh=thresh_zstat1 -o cluster_mask_zstat1 --connectivity=26 " +
+        "--mm --olmax=lmax_zstat1_tal.txt > cluster_zstat1_std.txt;" +
+        "$FSLDIR/bin/cluster2html . cluster_zstat1 -std;" +
+        "MinMax=$($FSLDIR/bin/fslstats thresh_zstat1 -l 0.0001 -R);" +
+        "$FSLDIR/bin/overlay 1 0 example_func -a thresh_zstat1 $MinMax " +
+        "rendered_thresh_zstat1;" +
+        "$FSLDIR/bin/slicer rendered_thresh_zstat1 -S 2 750 " +
+        "rendered_thresh_zstat1.png;" +
+        "cp $FSLDIR/etc/luts/ramp.gif .ramp.gif"
     ]
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
