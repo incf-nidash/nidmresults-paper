@@ -222,7 +222,6 @@ if __name__ == '__main__':
         "/bin/rm -f stats/zem* stats/zols* stats/mask* ;" +
         "$FSLDIR/bin/smoothest -d $(cat stats/dof) -m " + ma_mask_name +
         " -r stats/res4d > stats/smoothness ;" +
-        "rm -f stats/res4d* ;" +
         "awk '/VOLUME/ {print $2}' stats/smoothness > thresh_zstat1.vol ;" +
         "awk '/DLH/ {print $2}' stats/smoothness > thresh_zstat1.dlh ;" +
         "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name +
