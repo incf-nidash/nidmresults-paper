@@ -1,8 +1,8 @@
 # data directories
 **/data/
 
-# pain_contrast directory (CBMA)
-pain_contrast/
+# ouput directory (CBMA & IBMA)
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
