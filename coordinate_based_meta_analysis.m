@@ -2,7 +2,8 @@
 COI_directory = 'pain_contrast'; % directory where data will be stored
 iterations = 15000; % iterations of Monte Carlo method
 % Path to the database
-dbname = fullfile(pwd, 'input', 'coordinate-based meta-analysis', 'pain.csv'); 
+dbname = fullfile(pwd, '..', '..', 'input', 'CBMA', 'pain.csv'); 
+disp(dbname)
 
 % Genereates a .mat file containing the database information. 
 % - When prompted 'Enter name of file to save (without .mat extension):'
