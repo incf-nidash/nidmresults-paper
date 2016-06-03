@@ -237,7 +237,7 @@ if __name__ == '__main__':
         "--mm --olmax=lmax_zstat1_tal.txt > cluster_zstat1_std.txt;" +
         "$FSLDIR/bin/cluster2html . cluster_zstat1 -std;" +
         "MinMax=$($FSLDIR/bin/fslstats thresh_zstat1 -l 0.0001 -R);" +
-        "$FSLDIR/bin/overlay 1 0 $FSLDIR/data/standard/MNI152_T1_1mm.nii.gz " +
+        "$FSLDIR/bin/overlay 1 0 $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz " +
         "-a thresh_zstat1 $MinMax " +
         "rendered_thresh_zstat1;" +
         "$FSLDIR/bin/slicer rendered_thresh_zstat1 -S 2 750 " +
