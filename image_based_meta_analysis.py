@@ -16,7 +16,7 @@ import zipfile
 
 if __name__ == '__main__':
     SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    data_dir = os.path.join(SCRIPT_DIR, "..", "..", "data", "pain")
+    data_dir = os.path.join(SCRIPT_DIR, "data", "pain")
     print data_dir
     assert os.path.isdir(data_dir)
 
