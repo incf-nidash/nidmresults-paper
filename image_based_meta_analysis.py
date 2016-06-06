@@ -16,15 +16,17 @@ import zipfile
 
 if __name__ == '__main__':
     SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-    data_dir = os.path.join(SCRIPT_DIR, "..", "..", "data", "pain")
+    data_dir = os.path.join(SCRIPT_DIR, "input", "data", "pain")
     print data_dir
     assert os.path.isdir(data_dir)
 
-    pre_dir = os.path.join(SCRIPT_DIR, "data")
-    FSL_DESIGN_DIR = os.path.join(SCRIPT_DIR, "fsl_design")
+    FSL_DESIGN_DIR = os.path.join(
+        SCRIPT_DIR, "input", "IBMA", "fsl_design")
+    assert os.path.isdir(FSL_DESIGN_DIR)
 
-    if not os.path.exists(pre_dir):
-        os.makedirs(pre_dir)
+    out_dir = os.path.join(SCRIPT_DIR, "output", "IBMA", "data")
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
 
     studies = glob.glob(os.path.join(data_dir, '*.nidm.zip'))
 
@@ -32,14 +34,14 @@ if __name__ == '__main__':
     varcon_maps = dict()
     mask_maps = dict()
 
-    ma_mask_name = os.path.join(pre_dir, "mask_ma")
+    ma_mask_name = os.path.join(out_dir, "mask_ma")
     ma_mask = None
 
     # studies = studies[0:3]
 
     for nidm_file in studies:
-        nidm_dir = nidm_file.replace(".nidm.zip", "")
-        study = os.path.basename(nidm_dir)
+        study = os.path.basename(nidm_file.replace(".nidm.zip", ""))
+        nidm_dir = os.path.join(out_dir, "pre", study)
         print "\nStudy: " + study
 
         with zipfile.ZipFile(nidm_file) as z:
@@ -100,14 +102,15 @@ if __name__ == '__main__':
                         # If study was performed with SPM, reslice to FSL's
                         # template space
                         for to_reslice in [con_file, std_file, mask_file]:
-                            file_name = os.path.basename(to_reslice).split(".")[0]
+                            file_name = os.path.basename(
+                                to_reslice).split(".")[0]
                             resliced_file = os.path.join(
-                                pre_dir, study + "_" + file_name + "_r")
+                                out_dir, study + "_" + file_name + "_r")
                             cmd = [
                                 "cd \"" + nidm_dir + "\";" +
                                 " flirt -in " + file_name + " -ref " +
-                                "$FSLDIR/data/standard/MNI152_T1_2mm -applyxfm " +
-                                "-usesqform " +
+                                "$FSLDIR/data/standard/MNI152_T1_2mm " +
+                                "-applyxfm -usesqform " +
                                 "-out " + resliced_file
                                 ]
                             print "Running " + ",".join(cmd)
@@ -125,9 +128,10 @@ if __name__ == '__main__':
                         # If study was performed with FSL, rescale to a target
                         # value of 100
                         for to_rescale in [con_file, std_file]:
-                            file_name = os.path.basename(to_rescale).split(".")[0]
+                            file_name = os.path.basename(
+                                to_rescale).split(".")[0]
                             rescaled_file = os.path.join(
-                                pre_dir, study + "_" + file_name + "_s")
+                                out_dir, study + "_" + file_name + "_s")
                             cmd = [
                                 "cd \"" + nidm_dir + "\";" +
                                 " fslmaths \"" + file_name + "\" -div 100 " +
@@ -149,7 +153,7 @@ if __name__ == '__main__':
 
                     # Create varcope from standard error map
                     varcope_file = "\"" + \
-                                   os.path.join(pre_dir, study + "_varcope") + \
+                                   os.path.join(out_dir, study + "_varcope") +\
                                    "\""
                     cmd = [" fslmaths " + std_file + " -sqr " + varcope_file]
                     print "Running " + ",".join(cmd)
@@ -182,10 +186,11 @@ if __name__ == '__main__':
 
     # Sort copes and varcopes by study names
     to_merge = {'copes': collections.OrderedDict(sorted(con_maps.items())),
-                'varcopes': collections.OrderedDict(sorted(varcon_maps.items()))}
+                'varcopes': collections.OrderedDict(
+                    sorted(varcon_maps.items()))}
     for file_name, files in to_merge.items():
         cmd = [
-            "fslmerge -t \""+os.path.join(pre_dir, file_name) +
+            "fslmerge -t \""+os.path.join(out_dir, file_name) +
             ".nii.gz\" "+" ".join(files.values())
         ]
         print "Running " + ",".join(cmd)
@@ -193,17 +198,17 @@ if __name__ == '__main__':
 
     # Remove NaNs from copes and varcopes
     # (SPM code background with NaNs while FSL uses zeros)
-    cmd = ["cd " + pre_dir + "; fslmaths copes.nii.gz -nan copes"]
+    cmd = ["cd " + out_dir + "; fslmaths copes.nii.gz -nan copes"]
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
 
-    cmd = ["cd " + pre_dir + "; fslmaths varcopes.nii.gz -nan varcopes"]
+    cmd = ["cd " + out_dir + "; fslmaths varcopes.nii.gz -nan varcopes"]
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
 
     # Mixed-effects GLM (study-level)
     cmd = [
-        "cd " + pre_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
+        "cd " + out_dir + "; flameo --cope=copes --vc=varcopes --ld=stats "
         " --dm=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.mat") +
         " --cs=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.grp") +
         " --tc=" + os.path.join(FSL_DESIGN_DIR, "simple_meta_analysis.con ") +
@@ -211,21 +216,33 @@ if __name__ == '__main__':
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
 
-    stat_dir = os.path.join(pre_dir, "stats")
+    stat_dir = os.path.join(out_dir, "stats")
 
-    # FWE Voxel-wise corrected threshold p<0.05 (with a cluster forming threshold
-    # of p<0.001 uncorrected)
+    # FWE Voxel-wise corrected threshold p<0.05 (with a cluster forming
+    # threshold of p<0.001 uncorrected)
     # Scripts from http://blogs.warwick.ac.uk/nichols/entry/flame_without_1st/
     cmd = [
-        "cd " + pre_dir + "; " +
+        "cd " + out_dir + "; " +
         "echo $($FSLDIR/bin/fslnvols copes) - 1 | bc -l  > stats/dof ;" +
         "/bin/rm -f stats/zem* stats/zols* stats/mask* ;" +
         "$FSLDIR/bin/smoothest -d $(cat stats/dof) -m " + ma_mask_name +
         " -r stats/res4d > stats/smoothness ;" +
-        "rm -f stats/res4d* ;" +
         "awk '/VOLUME/ {print $2}' stats/smoothness > thresh_zstat1.vol ;" +
         "awk '/DLH/ {print $2}' stats/smoothness > thresh_zstat1.dlh ;" +
-        "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name + " thresh_zstat1"
+        "$FSLDIR/bin/fslmaths stats/zstat1 -mas " + ma_mask_name +
+        " thresh_zstat1;" +
+        "$FSLDIR/bin/cluster -i thresh_zstat1 -c stats/cope1 -t 3.1 -p 0.05" +
+        " -d $(cat thresh_zstat1.dlh) --volume=$(cat thresh_zstat1.vol) " +
+        "--othresh=thresh_zstat1 -o cluster_mask_zstat1 --connectivity=26 " +
+        "--mm --olmax=lmax_zstat1_tal.txt > cluster_zstat1_std.txt;" +
+        "$FSLDIR/bin/cluster2html . cluster_zstat1 -std;" +
+        "MinMax=$($FSLDIR/bin/fslstats thresh_zstat1 -l 0.0001 -R);" +
+        "$FSLDIR/bin/overlay 1 0 $FSLDIR/data/standard/MNI152_T1_2mm.nii.gz " +
+        "-a thresh_zstat1 $MinMax " +
+        "rendered_thresh_zstat1;" +
+        "$FSLDIR/bin/slicer rendered_thresh_zstat1 -S 2 750 " +
+        "rendered_thresh_zstat1.png;" +
+        "cp $FSLDIR/etc/luts/ramp.gif .ramp.gif"
     ]
     print "Running " + ",".join(cmd)
     check_call(cmd, shell=True)
