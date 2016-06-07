@@ -1,6 +1,7 @@
 # NIDM-Results use-cases
 
-- `simple_meta_analysis.py`: Group meta-analysis using FSL's FLAME.
-- `query_results_report.py`: Write a summary report on group statistics.
+- `coordinate_based_meta_analysis.m`	Example of coordinate-based meta-analysis.
+- `image_based_meta_analysis.py`	Example of image-based meta-analysis.
+- `report_results.py`: Examples of automatically-generated summary reports.
 
 These scripts are part of NIDM-Results paper.
