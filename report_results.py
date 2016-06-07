@@ -7,30 +7,63 @@ two NIDM-Results export: one from SPM, one from FSL.
 """
 
 import os
-import re
 import glob
 import logging
 import zipfile
 from urllib2 import urlopen, URLError, HTTPError
-import tempfile
-from rdflib.graph import Graph, Namespace
+from rdflib.graph import Graph
 from nidmresults import latest_owlfile as owl_file
 from nidmresults.objects.constants_rdflib import *
+from urllib2 import Request
+import json
+
 
 if __name__ == '__main__':
+
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
 
     SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
     data_dir = os.path.join(SCRIPT_DIR, "input", "data", "examples")
     assert os.path.isdir(data_dir)
 
     # Examples of NIDM-Results archives
+    study_names = ["fsl_ds107_group", "fsl_ds107_sub-01",
+                   "spm_ds107_group", "spm_ds107_sub-01"]
     export_dirs = glob.glob(os.path.join(data_dir, '*.nidm.zip'))
 
-    OBO = Namespace("http://purl.obolibrary.org/obo/")
+    # Check all of them are available
+    locally = True
+    for study_name in study_names:
+        if not os.path.isfile(os.path.join(data_dir, study_name, ".nidm.zip")):
+            locally = False
+            break
 
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    tmpdir = tempfile.mkdtemp()
+    if not locally:
+        # Get data from NeuroVault and copy locally
+        request = Request('http://neurovault.org/api/collections/1435/\
+nidm_results/?limit=184&format=json')
+        response = urlopen(request)
+        elevations = response.read()
+        data = json.loads(elevations)
+        for nidm_result in data["results"]:
+            url = nidm_result["zip_file"]
+            study_name = nidm_result["name"]
+            if study_name in [s + ".nidm" for s in study_names]:
+                print url
+                # Copy .nidm.zip export locally in a the data directory
+                try:
+                    f = urlopen(url)
+                    tmpzip = os.path.join(data_dir, study_name + ".nidm.zip")
+                    logger.info("downloading " + url + " at " + tmpzip)
+                    with open(tmpzip, "wb") as local_file:
+                        local_file.write(f.read())
+                except HTTPError, e:
+                    raise Exception(["HTTP Error:" + e.code + url])
+                except URLError, e:
+                    raise Exception(["URL Error:" + e.reason + url])
+
+    export_dirs = glob.glob(os.path.join(data_dir, '*.nidm.zip'))
 
     def threshold_txt(owl_graph, thresh_type, value, stat_type):
         multiple_compa = ""
@@ -58,30 +91,11 @@ if __name__ == '__main__':
 
         return list([thresh, multiple_compa])
 
-    for url in export_dirs:
-        if url.startswith("http:"):
-            # Copy .nidm.zip export locally in a temp directory
-            try:
-                f = urlopen(url)
-                data_id = re.search('id=(\w+)', url).groups()[0]
-                tmpzip = os.path.join(tmpdir, data_id + ".nidm.zip")
-
-                logger.info("downloading " + url + " at " + tmpzip)
-                with open(tmpzip, "wb") as local_file:
-                    local_file.write(f.read())
-
-            except HTTPError, e:
-                raise Exception(["HTTP Error:" + e.code + url])
-            except URLError, e:
-                raise Exception(["URL Error:" + e.reason + url])
-
-            nidm_dir = os.path.join(tmpdir, data_id)
-        else:
-            tmpzip = url
-            nidm_dir = tmpzip.replace(".nidm.zip", "")
+    for nidmzip in export_dirs:
+        nidm_dir = nidmzip.replace(".nidm.zip", "")
 
         # Unzip NIDM-Results export
-        with zipfile.ZipFile(tmpzip, 'r') as zf:
+        with zipfile.ZipFile(nidmzip, 'r') as zf:
             zf.extractall(nidm_dir)
 
         nidm_doc = os.path.join(nidm_dir, "nidm.ttl")
@@ -97,7 +111,8 @@ if __name__ == '__main__':
         prefix nidm_Data: <http://purl.org/nidash/nidm#NIDM_0000169>
         prefix ModelParamEstimation: <http://purl.org/nidash/nidm#NIDM_0000056>
         prefix withEstimationMethod: <http://purl.org/nidash/nidm#NIDM_0000134>
-        prefix errorVarianceHomogeneous: <http://purl.org/nidash/nidm#NIDM_0000094>
+        prefix errorVarianceHomogeneous: <http://purl.org/nidash/nidm#NIDM_000\
+0094>
         prefix SearchSpaceMaskMap: <http://purl.org/nidash/nidm#NIDM_0000068>
         prefix contrastName: <http://purl.org/nidash/nidm#NIDM_0000085>
         prefix statisticType: <http://purl.org/nidash/nidm#NIDM_0000123>
@@ -105,26 +120,31 @@ if __name__ == '__main__':
         prefix searchVolumeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000121>
         prefix searchVolumeInUnits: <http://purl.org/nidash/nidm#NIDM_0000136>
         prefix HeightThreshold: <http://purl.org/nidash/nidm#NIDM_0000034>
-        prefix userSpecifiedThresholdType: <http://purl.org/nidash/nidm#NIDM_0000125>
+        prefix userSpecifiedThresholdType: <http://purl.org/nidash/nidm#NIDM_0\
+000125>
         prefix ExtentThreshold: <http://purl.org/nidash/nidm#NIDM_0000026>
         prefix ExcursionSetMap: <http://purl.org/nidash/nidm#NIDM_0000025>
         prefix softwareVersion: <http://purl.org/nidash/nidm#NIDM_0000122>
         prefix clusterSizeInVoxels: <http://purl.org/nidash/nidm#NIDM_0000084>
-        prefix obo_studygrouppopulation: <http://purl.obolibrary.org/obo/STATO_0000193>
-        prefix nidm_hasErrorDependence: <http://purl.org/nidash/nidm#NIDM_0000100>
-        prefix nidm_dependenceMapWiseDependence: <http://purl.org/nidash/nidm#NIDM_0000089>
+        prefix obo_studygrouppopulation: <http://purl.obolibrary.org/obo/STATO\
+_0000193>
+        prefix nidm_hasErrorDependence: <http://purl.org/nidash/nidm#NIDM_0000\
+100>
+        prefix nidm_dependenceMapWiseDependence: <http://purl.org/nidash/nidm\
+#NIDM_0000089>
         prefix nidm_DesignMatrix: <http://purl.org/nidash/nidm#NIDM_0000019>
         prefix nidm_hasDriftModel: <http://purl.org/nidash/nidm#NIDM_0000088>
         prefix fsl_driftCutoffPeriod: <http://purl.org/nidash/fsl#FSL_0000004>
-        prefix spm_SPMsDriftCutoffPeriod: <http://purl.org/nidash/spm#SPM_0000001>
+        prefix spm_SPMsDriftCutoffPeriod: <http://purl.org/nidash/spm#SPM_0000\
+001>
 
         SELECT DISTINCT ?est_method ?homoscedasticity ?contrast_name ?stat_type
                 ?search_vol_vox ?search_vol_units
                 ?extent_thresh_value ?height_thresh_value
                 ?extent_thresh_type ?height_thresh_type
                 ?software ?excursion_set_id ?soft_version ?subjects_type
-                ?var_spatial ?covar ?covar_spatial ?drift_model ?fsl_drift_cutoff
-                ?spm_drift_cutoff
+                ?var_spatial ?covar ?covar_spatial ?drift_model
+                ?fsl_drift_cutoff ?spm_drift_cutoff
             WHERE {
             ?mpe a ModelParamEstimation: ;
                 withEstimationMethod: ?est_method ;
@@ -147,7 +167,8 @@ if __name__ == '__main__':
             ?error_model errorVarianceHomogeneous: ?homoscedasticity ;
                 nidm_varianceMapWiseDependence: ?var_spatial ;
                 nidm_hasErrorDependence: ?covar .
-            OPTIONAL {?error_model nidm_dependenceMapWiseDependence: ?covar_spatial }.
+            OPTIONAL {?error_model nidm_dependenceMapWiseDependence: \
+?covar_spatial }.
             ?data a nidm_Data: ;
                 prov:wasAttributedTo ?group_or_subject .
             {
@@ -197,16 +218,16 @@ if __name__ == '__main__':
         owl_graph.parse(owl_file, format='turtle')
 
         print "\n\n"
-        print os.path.basename(url)
+        print os.path.basename(nidmzip)
 
         if sd:
             for row in sd:
                 est_method, homoscedasticity, contrast_name, stat_type, \
                     search_vol_vox, search_vol_units, extent_value, \
                     height_value, extent_thresh_type, height_thresh_type, \
-                    software, exc_set, soft_version, subjects_type, var_spatial,\
-                    covar, covar_spatial, drift_model, fsl_drift_cutoff,\
-                    spm_drift_cutoff = row
+                    software, exc_set, soft_version, subjects_type, \
+                    var_spatial, covar, covar_spatial, drift_model, \
+                    fsl_drift_cutoff, spm_drift_cutoff = row
 
                 # Convert all info to text
                 thresh = ""
@@ -218,14 +239,16 @@ if __name__ == '__main__':
                         owl_graph, extent_thresh_type, extent_value, stat_type)
                     clus_thresh, unused = threshold_txt(
                         owl_graph, height_thresh_type, height_value, stat_type)
-                    thresh += " with a cluster defining threshold " + clus_thresh
+                    thresh += " with a cluster defining threshold " + \
+                        clus_thresh
 
                 else:
                     inference_type = "Voxel-wise"
                     thresh, multiple_compa = threshold_txt(
                         owl_graph, height_thresh_type, height_value, stat_type)
                     if int(extent_value) > 0:
-                        thresh += " and clusters smaller than %d were discarded" \
+                        thresh += \
+                            " and clusters smaller than %d were discarded" \
                             % int(extent_value)
 
                 if homoscedasticity:
@@ -238,7 +261,8 @@ if __name__ == '__main__':
                 elif subjects_type in [PROV['Person']]:
                     subjects = "subject"
                 else:
-                    raise Exception('Unknown subject type: ' + str(subjects_type))
+                    raise Exception(
+                        'Unknown subject type: ' + str(subjects_type))
 
                 if var_spatial == NIDM_SPATIALLY_LOCAL_MODEL:
                     var_spatial = "local"
@@ -248,7 +272,8 @@ if __name__ == '__main__':
                     var_spatial = "spatially regularized"
                 else:
                     raise Exception(
-                        'Unknown spatial variance estimation: ' + str(var_spatial))
+                        'Unknown spatial variance estimation: ' +
+                        str(var_spatial))
 
                 if covar == NIDM_INDEPENDENT_ERROR:
                     covar = ""
