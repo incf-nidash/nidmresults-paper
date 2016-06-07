@@ -35,7 +35,8 @@ if __name__ == '__main__':
     # Check all of them are available
     locally = True
     for study_name in study_names:
-        if not os.path.isfile(os.path.join(data_dir, study_name, ".nidm.zip")):
+        if not os.path.isfile(
+                os.path.join(data_dir, study_name + ".nidm.zip")):
             locally = False
             break
 
@@ -54,7 +55,7 @@ nidm_results/?limit=184&format=json')
                 # Copy .nidm.zip export locally in a the data directory
                 try:
                     f = urlopen(url)
-                    tmpzip = os.path.join(data_dir, study_name + ".nidm.zip")
+                    tmpzip = os.path.join(data_dir, study_name + ".zip")
                     logger.info("downloading " + url + " at " + tmpzip)
                     with open(tmpzip, "wb") as local_file:
                         local_file.write(f.read())
